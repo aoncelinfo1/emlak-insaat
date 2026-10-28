@@ -355,9 +355,11 @@ if(!renderer){ const eb=document.getElementById('errBox'); if(eb){ eb.hidden=fal
 try{ sessionStorage.removeItem('glRetry'); }catch(_){}
 // Sayfa kapanırken 3B bağlamını serbest bırak: tarayıcının bağlam sınırı dolmasın
 window.addEventListener('pagehide',()=>{ try{ renderer.dispose(); renderer.forceContextLoss(); }catch(_){} });
-let PR=LOW?1:Math.min(window.devicePixelRatio,1.5); renderer.setPixelRatio(PR);
+// Kademeli çözünürlük: hareket ederken düşük (akıcı), durunca yüksek (keskin). Kasarsa Q otomatik düşer.
+const DPR=window.devicePixelRatio||1, PR_HI=Math.min(DPR,LOW?1.6:1.5), PR_LO=LOW?Math.min(0.9,PR_HI):PR_HI;
+let PR=PR_LO, Q=1; renderer.setPixelRatio(PR);
 renderer.setSize(innerWidth,innerHeight);
-renderer.shadowMap.enabled=!LOW;
+renderer.shadowMap.enabled=true; renderer.shadowMap.autoUpdate=false; renderer.shadowMap.needsUpdate=true; // gölge haritası saniyede ~1 kez güncellenir
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.localClippingEnabled=true;
 host.appendChild(renderer.domElement);
@@ -404,11 +406,11 @@ controls.addEventListener('change',()=>{
 
 scene.add(new THREE.HemisphereLight(0xfdfbf3,0x6f8a5a,0.75));
 const sun=new THREE.DirectionalLight(0xfff3dc,0.85);
-sun.position.set(30,70,25); sun.castShadow=!LOW;
-sun.shadow.mapSize.set(1024,1024);
-Object.assign(sun.shadow.camera,{left:-85,right:85,top:75,bottom:-75,near:10,far:260});
+sun.position.set(40,112,40); sun.castShadow=true;
+sun.shadow.mapSize.set(LOW?1536:2048,LOW?1536:2048);
+Object.assign(sun.shadow.camera,{left:-135,right:135,top:130,bottom:-130,near:10,far:420});
 scene.add(sun);
-sun.shadow.mapSize.set(1024,1024); sun.shadow.bias=-0.0005; sun.shadow.normalBias=0.04;
+sun.shadow.bias=-0.0006; sun.shadow.normalBias=0.04;
 
 const mat=(c,o)=>new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));
 function box(w,h,d,m,x,y,z){const g=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);g.position.set(x||0,y||0,z||0);g.castShadow=true;g.receiveShadow=true;return g;}
@@ -1986,13 +1988,16 @@ function tick(){
 
 const v3=new THREE.Vector3();
 let frameErr=false;
-let _fLast=0, _fSum=0, _fN=0;
+let _fLast=0, _fSum=0, _fN=0, _lastMove=0, _idle=false;
+controls.addEventListener('change',()=>{_lastMove=performance.now();});
+renderer.domElement.addEventListener('pointerdown',()=>{_lastMove=performance.now();});
 function frame(now){
   now=now||performance.now();
-  const dt=now-_fLast;
-  if(LOW&&dt<30) return;   // 30 kare/sn sınırı: daha sakin ve ısınmayan oyun
-  _fLast=now;
-  if(dt<500){ _fSum+=dt; _fN++; if(_fN>=60){ const avg=_fSum/_fN; _fSum=0; _fN=0; if(avg>52&&PR>0.6){ PR=Math.max(0.6,PR*0.8); renderer.setPixelRatio(PR); renderer.setSize(innerWidth,innerHeight); } } }
+  const idle=!fly&&(now-_lastMove>400), dt=now-_fLast;
+  if(LOW&&dt<(idle?58:30)) return;   // hareketlide 30, durgunken ~15 kare/sn: telefon ısınmaz, pil gitmez
+  _fLast=now; _idle=idle;
+  if(LOW){ const tp=(idle?PR_HI:PR_LO)*Q; if(Math.abs(tp-PR)>0.02){ PR=tp; renderer.setPixelRatio(PR); renderer.setSize(innerWidth,innerHeight); } }
+  if(dt<700){ _fSum+=dt/(idle?2:1); _fN++; if(_fN>=50){ const avg=_fSum/_fN; _fSum=0; _fN=0; if(avg>50&&Q>0.55) Q=Math.max(0.55,Q*0.88); else if(avg<=36&&Q<1) Q=Math.min(1,Q*1.04); } }
   try{ frameBody(); }catch(e){ if(!frameErr){frameErr=true; reportErr('çizim',e);} }
 }
 function frameBody(){
@@ -2003,7 +2008,7 @@ function frameBody(){
     if(u>=1){fly=null;flying=false;}
   }
   sea.position.x=controls.target.x; sea.position.z=controls.target.z;
-  sun.target.position.copy(controls.target); sun.position.set(controls.target.x+30,70,controls.target.z+25);
+  if(viewN!==1||worldView){ sun.target.position.copy(controls.target); sun.position.set(controls.target.x+48,112,controls.target.z+40); } else { sun.target.position.set(-8,0,0); sun.position.set(40,112,40); }
   controls.update();
   const t=performance.now();
   for(let k=growing.length-1;k>=0;k--){const g=growing[k],u=Math.min(1,(t-g.t0)/700);g.b.scale.y=0.01+0.99*(1-Math.pow(1-u,3));if(u>=1)growing.splice(k,1);}
@@ -2025,6 +2030,7 @@ function frameBody(){
     const b=S.plots[p.i].b; v3.set(POS[p.i][0],(b?B[b.type].h:3)+2+u*3,POS[p.i][1]).project(camera);
     p.el.style.left=((v3.x+1)/2*innerWidth)+'px'; p.el.style.top=((1-v3.y)/2*innerHeight)+'px'; p.el.style.opacity=(v3.z<1&&plotObj[p.i]&&isVis(plotObj[p.i].g))?String(1-u*u):'0';
   }
+  if(t-(frameBody.sh||0)>(LOW?2000:900)&&(!LOW||_idle)){ renderer.shadowMap.needsUpdate=true; frameBody.sh=t; }  // telefonda gölge sadece durgunken yenilenir (kasma olmasın)
   renderer.render(scene,camera);
 }
 
