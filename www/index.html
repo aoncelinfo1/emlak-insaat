@@ -417,15 +417,17 @@ function box(w,h,d,m,x,y,z){const g=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
 // ADA: oyuncunun adası (A1). Doğusu düz kıyı (askeri bölge, denize sıfır), etrafı deniz.
 // Ada adları: A1..A10000, sonra B1..B10000, ... Z1..Z10000 (toplam 260.000 ada)
 function islandName(n){const i=n-1; return String.fromCharCode(65+Math.floor(i/10000))+(i%10000+1);}
-const sea=new THREE.Mesh(new THREE.PlaneGeometry(2600,2600),new THREE.MeshLambertMaterial({color:0x2f86b8}));
+const sea=new THREE.Mesh(new THREE.PlaneGeometry(2600,2600),new THREE.MeshLambertMaterial({color:0x1190a8}));
 sea.rotation.x=-Math.PI/2; sea.position.y=-0.12; scene.add(sea); // Boom Beach gibi: ada denizle çevrili
 
 function dShape(R,xc){const sh=new THREE.Shape(), a0=Math.acos(Math.min(1,xc/R)); sh.absarc(0,0,R,a0,2*Math.PI-a0,false); sh.closePath(); return sh;}
-const shallow=new THREE.Mesh(new THREE.ShapeGeometry(dShape(113,81),64),mat(0x6fd9e8));
-shallow.rotation.x=-Math.PI/2; shallow.position.y=-0.09; scene.add(shallow);   // kıyı boyunca sığ, açık renkli su
-const beach=new THREE.Mesh(new THREE.ShapeGeometry(dShape(99,69),64),mat(0xe3d6a8));
-beach.rotation.x=-Math.PI/2; beach.position.y=-0.04; beach.receiveShadow=true; scene.add(beach);
-const ground=new THREE.Mesh(new THREE.ShapeGeometry(dShape(96,66),64),mat(0x9cbf74));
+const shallow=new THREE.Mesh(new THREE.ShapeGeometry(dShape(126,90),64),mat(0x3fb9bb));
+shallow.rotation.x=-Math.PI/2; shallow.position.set(-9,-0.09,0); scene.add(shallow);   // kıyı boyunca sığ, açık turkuaz su
+const foam=new THREE.Mesh(new THREE.ShapeGeometry(dShape(110,80),64),mat(0xf4ffff));
+foam.rotation.x=-Math.PI/2; foam.position.set(-9,-0.065,0); scene.add(foam);          // sahil köpüğü
+const beach=new THREE.Mesh(new THREE.ShapeGeometry(dShape(106,78),64),mat(0xf0e2b6));
+beach.rotation.x=-Math.PI/2; beach.position.set(-9,-0.04,0); beach.receiveShadow=true; scene.add(beach); // batıda geniş kumsal
+const ground=new THREE.Mesh(new THREE.ShapeGeometry(dShape(96,66),64),mat(0x8fbe52));
 ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
 const walk=mat(0xd9d2c1);
 ZONES.forEach(zn=>{
@@ -468,6 +470,40 @@ function tree(x,z,s){const g=new THREE.Group();
 [[-30,-18],[-12,-18.4],[8,-18.2],[28,-18],[-26,18.2],[-4,18.4],[16,18],
  [46,-45],[36,-48],[-46,-45],[-36,-48],[46,45],[36,48],[-46,45],[-36,48],
  [0,-90],[-32,-86],[32,-86],[0,90],[-32,86],[32,86],[-90,-18],[-90,20],[52,-52],[-52,-52],[52,52],[-52,52],[66,-66],[-66,66]].forEach(([x,z],i)=>tree(x,z,0.8+((i*37)%5)/10));
+
+// --- Ada manzarası: kayalıklar, orman, ağaçlık, sahil. Az sayıda çizim çağrısı için kopyalı (instanced) çizilir ---
+(function scenery(){
+  let sd=2024; const R=()=>{sd=(sd*1664525+1013904223)>>>0; return sd/4294967296;};
+  const dm=new THREE.Object3D();
+  function inst(geo,color,list){
+    if(!list.length)return;
+    const m=new THREE.InstancedMesh(geo,mat(color),list.length);
+    list.forEach((o,i)=>{dm.position.set(o.x,o.y,o.z);dm.scale.set(o.sx,o.sy,o.sz);dm.rotation.set(0,o.ry||0,0);dm.updateMatrix();m.setMatrixAt(i,dm.matrix);});
+    m.instanceMatrix.needsUpdate=true; m.frustumCulled=false; scene.add(m);
+  }
+  const pol=(deg,r)=>{const a=deg*Math.PI/180; return [Math.cos(a)*r,Math.sin(a)*r];};
+  // kayalıklar (üç ton)
+  const rk=[[],[],[]], rock=(x,z,s,h)=>{rk[Math.floor(R()*3)].push({x,y:h*0.42,z,sx:s*(0.9+R()*0.4),sy:h,sz:s*(0.9+R()*0.4),ry:R()*6.28});};
+  for(let k=0;k<24;k++){const [x,z]=pol(188+R()*100,98+R()*6); rock(x,z,3.6+R()*4,5+R()*10);}            // arka yamaç
+  for(let k=0;k<10;k++){const [x,z]=pol(290+R()*60,96+R()*5); rock(x,z,2.6+R()*2.4,3.5+R()*5);}           // sağ kıyı
+  [-69,69].forEach(zz=>{for(let k=0;k<4;k++) rock(66+R()*6,zz+(R()-0.5)*9,2.4+R()*3,3+R()*6);});          // doğu kıyı köşeleri
+  for(let k=0;k<7;k++) rock(74+R()*18,(R()-0.5)*120,1.4+R()*1.6,1.5+R()*2.5);                              // sudaki kayalar
+  for(let k=0;k<4;k++){const [x,z]=pol(120+R()*60,108+R()*3); rock(x,z,1.2+R()*1.4,1.4+R()*2);}            // kumsaldaki taşlar
+  const rg=new THREE.IcosahedronGeometry(1,0);
+  inst(rg,0xd8a062,rk[0]); inst(rg,0xc4864a,rk[1]); inst(rg,0xe9bd85,rk[2]);
+  // sık orman kenarı (yuvarlak çalılar)
+  const b1=[],b2=[];
+  for(let a=198;a<352;a+=2.4){const [x,z]=pol(a+R()*2,89+R()*7), s=2.6+R()*2.4; (R()<0.5?b1:b2).push({x,y:s*0.6,z,sx:s,sy:s*0.78,sz:s});}
+  for(let a=150;a<198;a+=7){const [x,z]=pol(a,90+R()*5), s=2+R()*1.6; b1.push({x,y:s*0.6,z,sx:s,sy:s*0.78,sz:s});}
+  const sg=new THREE.SphereGeometry(1,7,5);
+  inst(sg,0x2e9a45,b1); inst(sg,0x45b04f,b2);
+  // yuvarlak tepeli ağaçlık (arka tarafta)
+  const tr=[],cn=[];
+  for(let k=0;k<46;k++){const [x,z]=pol(212+R()*95,84+R()*7), c=2+R()*1.3, h=1.6+R()*1.2;
+    tr.push({x,y:h/2,z,sx:0.45,sy:h,sz:0.45}); cn.push({x,y:h+c*0.7,z,sx:c,sy:c*0.85,sz:c});}
+  inst(new THREE.CylinderGeometry(1,1.25,1,5),0x7a5432,tr);
+  inst(sg,0x5bb53f,cn);
+})();
 
 /* ---------- Komşu küçük adalar (A2, A3, ...) ---------- */
 // Online sürümde diğer oyuncuların adaları olacak; şimdilik boş ve ulaşılamaz.
