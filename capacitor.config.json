@@ -1,7 +1,1 @@
-{
-  "appId": "com.emlakinsaat.oyun",
-  "appName": "Emlak ve İnşaat",
-  "webDir": "www",
-  "backgroundColor": "#cfe3ea",
-  "android": { "allowMixedContent": false }
-}
+{"appId":"com.emlakinsaat.oyun","appName":"Emlak ve İnşaat","webDir":"www","backgroundColor":"#cfe3ea","server":{"url":"https://aoncelinfo1.github.io/emlak-insaat/","cleartext":false},"android":{"allowMixedContent":false}}
