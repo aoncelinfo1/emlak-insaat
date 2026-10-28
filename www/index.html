@@ -114,6 +114,7 @@ dl.facts dt{color:var(--muted)} dl.facts dd{margin:0;font-weight:700}
 .army{position:fixed;z-index:5;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 62px);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;pointer-events:none}
 .army[hidden]{display:none}
 .chip.full .v{color:var(--bad)}
+.isl:empty{display:none}
 .isl{position:fixed;z-index:4;left:calc(env(safe-area-inset-left,0px) + 16px);bottom:calc(env(safe-area-inset-bottom,0px) + 92px);background:rgba(30,42,47,.78);color:#fff;font:700 12px var(--f-body);padding:5px 10px;border-radius:14px;pointer-events:none}
 .chip .x{display:block;font:800 9px/1.1 var(--f-body);color:var(--bad);white-space:nowrap}
 .army .chip{padding:4px 6px}
@@ -509,7 +510,7 @@ function goIsland(n){
   viewN=n; setMode(null); document.getElementById('homeBtn').hidden=(n===1&&!worldView);
   viewC=(n===1)?[0,0]:islandPos(n); viewB=(n===1)?[70,58]:((S.isl[n]||FOE[n])?[60,60]:[25,25]);
   const hn=islandName(S.island||1), nm=islandName(n);
-  if(n===1){showOnly(1); flyTo(0,0,HOME_D); document.getElementById('islBadge').textContent='Ada '+hn+' · Oyuncu: Sen'; toast('Adana döndün: '+hn); return;}
+  if(n===1){showOnly(1); flyTo(0,0,HOME_D); document.getElementById('islBadge').textContent=''; toast('Adana döndün: '+hn); return;}
   const [x,z]=islandPos(n); ensureAround(n); showOnly(n); flyTo(x,z,(S.isl[n]||FOE[n])?HOME_D:70);
   document.getElementById('islBadge').textContent=S.isl[n]?'Ada '+nm+' · Senin':(FOE[n]?'Ada '+nm+' · Düşman':'Uzaktan: '+nm+' · Boş ada');
   toast(S.isl[n]?nm+' adana bakıyorsun':nm+' adasına bakıyorsun');
@@ -766,7 +767,7 @@ function updateMissiles(dt){
 
 // Gizli nesnelere (ve sahneden kaldırılmış eski binalara) dokunma geçmesin
 function isVis(o){let r=o; while(r){if(!r.visible)return false; if(!r.parent)return r===scene; r=r.parent;} return false;}
-document.getElementById('islBadge').textContent='Ada '+islandName(S.island||1)+' · Oyuncu: Sen';
+document.getElementById('islBadge').textContent='';
 
 /* ---------- Dokular ---------- */
 function markerTex(color){
@@ -1824,7 +1825,7 @@ body.addEventListener('click',e=>{
     const i=mode.i, k=bt.dataset.build, d=B[k]; if(!canAfford(d.cost)||S.plots[i].b||!allowed(i).includes(k)||(i<50&&d.mil&&hasB(k))||(i<50&&k==='gemi'&&i%10>=5))return;
     RES.forEach(r=>{S.res[r]-=d.cost;flash(r);});
     S.plots[i].b={type:k,start:Date.now(),done:false,last:0};
-    startSite(i); renderHUD(); save(); renderSheet(); toast(`${d.name} inşaatı başladı · ${d.build} sn`);
+    startSite(i); renderHUD(); save(); setMode(null); flyTo(POS[i][0],POS[i][1],70); toast(`${d.name} inşaatı başladı · ${d.build} sn`);
   }
 });
 $('marketBtn').addEventListener('click',()=>setMode({t:'market'}));
