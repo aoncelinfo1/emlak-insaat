@@ -1,0 +1,7 @@
+{
+  "appId": "com.emlakinsaat.oyun",
+  "appName": "Emlak ve İnşaat",
+  "webDir": "www",
+  "backgroundColor": "#cfe3ea",
+  "android": { "allowMixedContent": false }
+}

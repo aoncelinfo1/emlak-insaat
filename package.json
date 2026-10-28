@@ -1,0 +1,17 @@
+{
+  "name": "emlak-insaat",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "libs": "node copy-libs.js",
+    "android:add": "npx cap add android",
+    "android:sync": "npm run libs && npx cap sync android",
+    "android:apk": "cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "three": "0.128.0"
+  }
+}
