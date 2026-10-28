@@ -375,8 +375,8 @@ const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,0.5,1800);
 const CAM_AZ=Math.PI/4, CAM_POL=0.65;
 (function fitCamera(){
   const a=innerWidth/innerHeight, t=Math.tan(20*Math.PI/180);
-  const dW=100/(t*a), dH=82/t;
-  const d=Math.min(640,Math.max(dW,dH)*1.02);
+  const dW=60/(t*a), dH=45/t;   // Boom Beach gibi yakın görünüm: ada ekranı doldurur, kenarlara parmakla gidilir
+  const d=Math.min(420,Math.max(dW,dH));
   camera.position.set(d*Math.sin(CAM_POL)*Math.sin(CAM_AZ), d*Math.cos(CAM_POL), d*Math.sin(CAM_POL)*Math.cos(CAM_AZ));
 })();
 const controls=new THREE.OrbitControls(camera,renderer.domElement);
@@ -394,7 +394,7 @@ controls.touches={ONE:THREE.TOUCH.PAN,TWO:THREE.TOUCH.DOLLY_PAN};
 ['selectstart','dragstart','contextmenu'].forEach(ev=>renderer.domElement.addEventListener(ev,e=>e.preventDefault()));
 renderer.domElement.addEventListener('mousedown',e=>{ if(e.button===0) e.preventDefault(); try{window.getSelection().removeAllRanges();}catch(_){} });
 // Kaydırma sınırı, bakılan adanın merkezine göre uygulanır (A1 için eskisi gibi). Kamera uçarken sınır devre dışıdır.
-let viewC=[0,0], viewB=[70,58], flying=false;
+let viewC=[-10,0], viewB=[80,80], flying=false;
 controls.addEventListener('change',()=>{
   if(flying)return;
   const t=controls.target; t.x=Math.max(viewC[0]-viewB[0],Math.min(viewC[0]+viewB[0],t.x)); t.z=Math.max(viewC[1]-viewB[1],Math.min(viewC[1]+viewB[1],t.z)); t.y=0;
@@ -509,7 +509,7 @@ function flyTo(x,z,dist){
 function goIsland(n){
   if(n===1) worldView=false;
   viewN=n; setMode(null); document.getElementById('homeBtn').hidden=(n===1&&!worldView);
-  viewC=(n===1)?[0,0]:islandPos(n); viewB=(n===1)?[70,58]:((S.isl[n]||FOE[n])?[60,60]:[25,25]);
+  viewC=(n===1)?[-10,0]:islandPos(n); viewB=(n===1)?[80,80]:((S.isl[n]||FOE[n])?[60,60]:[25,25]);
   const hn=islandName(S.island||1), nm=islandName(n);
   if(n===1){showOnly(1); flyTo(0,0,HOME_D); document.getElementById('islBadge').textContent=''; toast('Adana döndün: '+hn); return;}
   const [x,z]=islandPos(n); ensureAround(n); showOnly(n); flyTo(x,z,(S.isl[n]||FOE[n])?HOME_D:70);
@@ -534,7 +534,7 @@ const a1=labelSprite('ADA '+islandName(S.island||1)); a1.position.set(0,20,-112)
 // Bir adaya bakarken sadece o ada görünür: A1'e bakarken A1 ve çevresindeki A2-A25, başka adaya bakarken yalnızca o ada
 function showOnly(n){
   const home=(n===1);
-  homeObjs.forEach(o=>{o.visible=home;}); if(world) world.visible=home; sea.visible=(home&&worldView); controls.maxDistance=(home&&worldView)?720:Math.max(HOME_D*1.05,120);
+  homeObjs.forEach(o=>{o.visible=home;}); if(world) world.visible=home; sea.visible=(home&&worldView); controls.maxDistance=(home&&worldView)?720:Math.max(HOME_D*1.02,60);
   Object.keys(islandObjs).forEach(k=>{const v=!S.isl[k]&&(home?(worldView&&+k<=25):(+k===n)); islandObjs[k].forEach(o=>{o.visible=v;});});
   Object.keys(islGroups).forEach(k=>{islGroups[k].visible=(home&&worldView)||(+k===n);});
   Object.keys(foeObjs).forEach(k=>{const f=foeObjs[k]; f.ground.visible=(home&&worldView)||(+k===n); f.bld.visible=(+k===n); if(+k===n&&!f.built) buildFoeBuildings(+k);});
