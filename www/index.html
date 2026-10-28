@@ -366,18 +366,25 @@ renderer.domElement.addEventListener('webglcontextlost',e=>{ e.preventDefault();
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0xcfe3ea);
-scene.fog=new THREE.Fog(0xcfe3ea,330,760);
+scene.fog=new THREE.Fog(0xcfe3ea,760,1500);
 
-const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.5,900);
-(function fitCamera(){const a=innerWidth/innerHeight, d=a<0.8?105:a<1.3?75:58; camera.position.set(0,d*0.72,d*0.72);})();
+const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,0.5,1800);
+// Boom Beach tarzı sabit kamera: sağ üst köşeden, yukarıdan eğik bakış. Açılışta A1 adasının tamamı görünür.
+const CAM_AZ=Math.PI/4, CAM_POL=0.65;
+(function fitCamera(){
+  const a=innerWidth/innerHeight, t=Math.tan(20*Math.PI/180);
+  const dW=100/(t*a), dH=82/t;
+  const d=Math.min(640,Math.max(dW,dH)*1.02);
+  camera.position.set(d*Math.sin(CAM_POL)*Math.sin(CAM_AZ), d*Math.cos(CAM_POL), d*Math.sin(CAM_POL)*Math.cos(CAM_AZ));
+})();
 const controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.target.set(0,0,0);
 controls.enableDamping=true; controls.dampingFactor=0.14;
-controls.minDistance=25; controls.maxDistance=380;
+controls.minDistance=25; controls.maxDistance=720;
 // Tek sabit kamera açısı: dönme yok. Sadece gezme (kaydırma) ve yakınlaştırma/uzaklaştırma.
 controls.enableRotate=false;
-controls.minPolarAngle=controls.maxPolarAngle=Math.PI/4;
-controls.minAzimuthAngle=0; controls.maxAzimuthAngle=0;
+controls.minPolarAngle=controls.maxPolarAngle=CAM_POL;
+controls.minAzimuthAngle=CAM_AZ; controls.maxAzimuthAngle=CAM_AZ;
 controls.screenSpacePanning=false; controls.panSpeed=0.9; controls.zoomSpeed=0.9;
 // Fare: sol/sağ tuş haritayı sürükler, tekerlek yakınlaştırır. Dokunmatik: tek parmak gezdirir, iki parmak yakınlaştırır. Dönme yok.
 controls.mouseButtons={LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN};
@@ -407,7 +414,10 @@ function box(w,h,d,m,x,y,z){const g=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
 // Ada adları: A1..A10000, sonra B1..B10000, ... Z1..Z10000 (toplam 260.000 ada)
 function islandName(n){const i=n-1; return String.fromCharCode(65+Math.floor(i/10000))+(i%10000+1);}
 const sea=new THREE.Mesh(new THREE.PlaneGeometry(2600,2600),new THREE.MeshLambertMaterial({color:0x2f86b8}));
-sea.rotation.x=-Math.PI/2; sea.position.y=-0.12; scene.add(sea);
+sea.rotation.x=-Math.PI/2; sea.position.y=-0.12; sea.visible=false; scene.add(sea); // geniş deniz: sadece Dünya görünümünde
+// Normal oyunda sadece savaş gemisi üretim yerinin (doğu kıyısı) önündeki küçük deniz parçası görünür
+const seaPatch=new THREE.Mesh(new THREE.CircleGeometry(40,56),new THREE.MeshLambertMaterial({color:0x2f86b8}));
+seaPatch.rotation.x=-Math.PI/2; seaPatch.scale.set(1,1.25,1); seaPatch.position.set(96,-0.12,0); scene.add(seaPatch);
 function dShape(R,xc){const sh=new THREE.Shape(), a0=Math.acos(Math.min(1,xc/R)); sh.absarc(0,0,R,a0,2*Math.PI-a0,false); sh.closePath(); return sh;}
 const beach=new THREE.Mesh(new THREE.ShapeGeometry(dShape(99,69),64),mat(0xe3d6a8));
 beach.rotation.x=-Math.PI/2; beach.position.y=-0.04; beach.receiveShadow=true; scene.add(beach);
@@ -522,7 +532,7 @@ const a1=labelSprite('ADA '+islandName(S.island||1)); a1.position.set(0,20,-112)
 // Bir adaya bakarken sadece o ada görünür: A1'e bakarken A1 ve çevresindeki A2-A25, başka adaya bakarken yalnızca o ada
 function showOnly(n){
   const home=(n===1);
-  homeObjs.forEach(o=>{o.visible=home;}); if(world) world.visible=home;
+  homeObjs.forEach(o=>{o.visible=home;}); if(world) world.visible=home; sea.visible=(home&&worldView);
   Object.keys(islandObjs).forEach(k=>{const v=!S.isl[k]&&(home?(worldView&&+k<=25):(+k===n)); islandObjs[k].forEach(o=>{o.visible=v;});});
   Object.keys(islGroups).forEach(k=>{islGroups[k].visible=(home&&worldView)||(+k===n);});
   Object.keys(foeObjs).forEach(k=>{const f=foeObjs[k]; f.ground.visible=(home&&worldView)||(+k===n); f.bld.visible=(+k===n); if(+k===n&&!f.built) buildFoeBuildings(+k);});
