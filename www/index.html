@@ -344,8 +344,10 @@ const ownedIn=z=>S.plots.slice(z*10,z*10+ZCOUNT[z]).filter(p=>p.owner==='oyuncu'
 
 /* ---------- Sahne ---------- */
 const host=document.getElementById('scene');
+// Performans: telefonlarda (özellikle düşük donanımda) gölge kapalı, çözünürlük 1x, kenar yumuşatma kapalı, 30 kare/sn sınırı, kasarsa çözünürlük otomatik düşer
+const LOW=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&Math.min(screen.width,screen.height)<900);
 let renderer=null;
-for(const opt of [{antialias:true},{antialias:false},{antialias:false,powerPreference:'low-power'},{antialias:false,failIfMajorPerformanceCaveat:false,precision:'mediump'}]){
+for(const opt of [{antialias:!LOW},{antialias:false},{antialias:false,powerPreference:'low-power'},{antialias:false,failIfMajorPerformanceCaveat:false,precision:'mediump'}]){
   try{ renderer=new THREE.WebGLRenderer(opt); break; }catch(err){ renderer=null; }
 }
 if(!renderer){ const eb=document.getElementById('errBox'); if(eb){ eb.hidden=false; try{ const c=+(sessionStorage.getItem('glRetry')||0); if(c<4){ sessionStorage.setItem('glRetry',String(c+1)); setTimeout(()=>location.reload(),1800); } }catch(_){}
@@ -353,9 +355,9 @@ if(!renderer){ const eb=document.getElementById('errBox'); if(eb){ eb.hidden=fal
 try{ sessionStorage.removeItem('glRetry'); }catch(_){}
 // Sayfa kapanırken 3B bağlamını serbest bırak: tarayıcının bağlam sınırı dolmasın
 window.addEventListener('pagehide',()=>{ try{ renderer.dispose(); renderer.forceContextLoss(); }catch(_){} });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+let PR=LOW?1:Math.min(window.devicePixelRatio,1.5); renderer.setPixelRatio(PR);
 renderer.setSize(innerWidth,innerHeight);
-renderer.shadowMap.enabled=true;
+renderer.shadowMap.enabled=!LOW;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.localClippingEnabled=true;
 host.appendChild(renderer.domElement);
@@ -402,7 +404,7 @@ controls.addEventListener('change',()=>{
 
 scene.add(new THREE.HemisphereLight(0xfdfbf3,0x6f8a5a,0.75));
 const sun=new THREE.DirectionalLight(0xfff3dc,0.85);
-sun.position.set(30,70,25); sun.castShadow=true;
+sun.position.set(30,70,25); sun.castShadow=!LOW;
 sun.shadow.mapSize.set(1024,1024);
 Object.assign(sun.shadow.camera,{left:-85,right:85,top:75,bottom:-75,near:10,far:260});
 scene.add(sun);
@@ -1948,7 +1950,15 @@ function tick(){
 
 const v3=new THREE.Vector3();
 let frameErr=false;
-function frame(){ try{ frameBody(); }catch(e){ if(!frameErr){frameErr=true; reportErr('çizim',e);} } }
+let _fLast=0, _fSum=0, _fN=0;
+function frame(now){
+  now=now||performance.now();
+  const dt=now-_fLast;
+  if(LOW&&dt<30) return;   // 30 kare/sn sınırı: daha sakin ve ısınmayan oyun
+  _fLast=now;
+  if(dt<500){ _fSum+=dt; _fN++; if(_fN>=60){ const avg=_fSum/_fN; _fSum=0; _fN=0; if(avg>52&&PR>0.6){ PR=Math.max(0.6,PR*0.8); renderer.setPixelRatio(PR); renderer.setSize(innerWidth,innerHeight); } } }
+  try{ frameBody(); }catch(e){ if(!frameErr){frameErr=true; reportErr('çizim',e);} }
+}
 function frameBody(){
   if(fly){
     const u=Math.min(1,(performance.now()-fly.t0)/fly.dur), e=u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
